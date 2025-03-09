@@ -1,4 +1,7 @@
+#include "lvlCreator.hpp"
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_events.h>
+#include <SDL2/SDL_keycode.h>
 #include <SDL2/SDL_rect.h>
 #include <SDL2/SDL_render.h>
 #include <cstdio>
@@ -12,30 +15,13 @@
 
 #define ITER2POINT(x) (&(*(x)))
 
-SDL_Window* window = NULL;
-SDL_Renderer* renderer = NULL;
 
-struct Sphere{
-	SDL_FPoint c;
-	SDL_FPoint speedVector;
-	int r = 10;
-	bool isFixed = true;
 
-	SDL_Rect rect(){
-		SDL_Rect temp = {static_cast<int>(c.x-r),static_cast<int>(c.y-r),2*r,2*r};
-		return temp;
-	}
-};
-
-std::list<std::vector<SDL_Point>> blocks;
-std::list<Sphere> balls;
-SDL_Rect paddle = {1920/2,1080-80, 100, 10};
-
-void clearScreen(){
+void clearScreen(SDL_Renderer* renderer){
 	SDL_SetRenderDrawColor(renderer,0,0,0,255);
 	SDL_RenderClear(renderer);
 }
-void drawPauseScreen(){
+void drawPauseScreen(SDL_Renderer* renderer){
 	SDL_SetRenderDrawColor(renderer,0,0,255,255);
 	SDL_Rect pauseScreen = {50,50,1800,800};
 	SDL_RenderFillRect(renderer,&pauseScreen);
@@ -48,17 +34,16 @@ SDL_FPoint normalize(SDL_FPoint p){
 	return p;
 }
 
-void restartGame(){
-
+void restartGame(State& state){
 	Sphere temp;
-	SDL_Point ballPosition = {paddle.x + paddle.w / 2 + temp.r * 2, paddle.y -  temp.r};
+	SDL_Point ballPosition = {state.paddle.x + state.paddle.w / 2 + temp.r * 2, state.paddle.y -  temp.r};
 	temp.c = {static_cast<float>(ballPosition.x),static_cast<float>(ballPosition.y)};
 	SDL_FPoint ballSpeed = normalize({1, -1});
 	temp.speedVector = ballSpeed;
-	balls.push_back(temp);
+	state.balls.push_back(temp);
 }
-void moveBalls(){
-	for(auto ball = balls.begin(); ball != balls.end(); ball++){
+void moveBalls(State& state){
+	for(auto ball = state.balls.begin(); ball != state.balls.end(); ball++){
 		if(!ball->isFixed){
 			ball->c.x += ball->speedVector.x;
 			ball->c.y += ball->speedVector.y;
@@ -90,17 +75,17 @@ void bounceBall(Sphere* ball, SDL_Point p1, SDL_Point p2){
 				scale * (-v.y *ball->speedVector.x + v.x * ball->speedVector.y)};
 	ball->speedVector = {ball->speedVector.x - 2 * temp.y * vn.x, ball->speedVector.y - 2 * temp.y * vn.y};
 }
-void ballColision(Sphere* ball){
+void ballColision(Sphere* ball, State& state){
 	if(ball->c.x - ball->r<0 || ball->c.x + ball->r>1920)
 		ball->speedVector.x = -ball->speedVector.x;
-	if(ball->c.y - ball->r < 0 || colisionDetect(ball, {paddle.x, paddle.y}, {paddle.x + paddle.w, paddle.y}))
+	if(ball->c.y - ball->r < 0 || colisionDetect(ball, {state.paddle.x, state.paddle.y}, {state.paddle.x + state.paddle.w, state.paddle.y}))
 		ball->speedVector.y = -ball->speedVector.y;
-	for (auto block = blocks.begin(); block != blocks.end(); block++ ) {
+	for (auto block = state.blocks.begin(); block != state.blocks.end(); block++ ) {
 		for(auto point = block->begin(); point != block->end(); point++){
 			if (colisionDetect(ball, *point, point+1==block->end()? *block->begin():*(point+1))){
 				bounceBall(ball, *point, point+1==block->end()? *block->begin():*(point+1));
 				auto blocktemp= block--;
-				blocks.erase(blocktemp);
+				state.blocks.erase(blocktemp);
 				break;
 			}
 		}
@@ -128,25 +113,78 @@ std::vector<SDL_Point> stringToPoint(std::vector<std::string> input){
 	}
 	return result;
 }
-void readLevelFromFile(std::string fileName){
+void readLevelFromFile(std::string fileName, State& state){
 	std::string nextLine;
 	std::ifstream ReadFile(fileName);
 	std::vector<SDL_Point> block;
 	int x,y;
 	while(getline(ReadFile,nextLine)){
-		blocks.push_back(stringToPoint(splitString(nextLine, ',')));
+		state.blocks.push_back(stringToPoint(splitString(nextLine, ',')));
 	}
 	ReadFile.close();
+}
+
+void eventHandler(SDL_Event& event,State& state){
+	while(SDL_PollEvent(&event)){
+		if(event.type == SDL_QUIT){
+			state.stage = 0;
+		}
+		if(event.type == SDL_MOUSEMOTION && !(state.stage % 2)){
+			if(state.paddle.x+event.motion.xrel>0
+			&& state.paddle.x+state.paddle.w+event.motion.xrel<1920){
+				state.paddle.x+=event.motion.xrel;
+				for(auto ball = state.balls.begin(); ball != state.balls.end(); ball++){
+					if(ball->isFixed){
+						ball->c.x+=event.motion.xrel;
+					}
+				}
+			}
+		}
+		if(event.type == SDL_MOUSEBUTTONDOWN){
+			if(state.stage % 2){
+				state.stage -= 1;
+				SDL_SetRelativeMouseMode(SDL_TRUE);
+			}
+			else{
+				for(auto ball = state.balls.begin(); ball != state.balls.end(); ball++){
+					ball->isFixed=false;
+				}
+			}
+
+		}
+		if(event.type == SDL_KEYDOWN){
+			if(event.key.keysym.sym == SDLK_ESCAPE){
+				state.stage = state.stage ^ 1;
+				if(state.stage % 2)
+					SDL_SetRelativeMouseMode(SDL_TRUE);
+				else
+					SDL_SetRelativeMouseMode(SDL_FALSE);
+			}
+			if(event.key.keysym.sym == SDLK_q){
+				state.stage = 0;
+			}
+			if(event.key.keysym.sym == SDLK_c){
+				state.stage = 8;
+			}
+		}
+	}
 }
 
 
 
 
 
-int main(){
 
-	bool isRunning = true;
-	bool isPaused = false;
+
+
+
+int main(){
+	SDL_Window* window = NULL;
+	SDL_Renderer* renderer = NULL;
+	State state;
+
+
+
 
 	SDL_Init(SDL_INIT_VIDEO);
 	SDL_CreateWindowAndRenderer(1920,1080,0,&window, &renderer);
@@ -156,56 +194,21 @@ int main(){
 	SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
 	SDL_FreeSurface(surface);
 
-	readLevelFromFile("level.txt");
+	readLevelFromFile("level.txt", state);
 
-	while (isRunning){
-		if(balls.empty()){
-			restartGame();
+	while (state.stage != 0){
+		if(state.balls.empty()){
+			restartGame(state);
 		}
 
 		usleep(1000);
-		clearScreen();
+		clearScreen(renderer);
 
 		SDL_Event event;
-		while(SDL_PollEvent(&event)){
-			if(event.type == SDL_QUIT){
-				isRunning = false;
-			}
-			if(event.type == SDL_MOUSEMOTION && !isPaused){
-				if(paddle.x+event.motion.xrel>0
-				&& paddle.x+paddle.w+event.motion.xrel<1920){
-					paddle.x+=event.motion.xrel;
-					for(auto ball = balls.begin(); ball != balls.end(); ball++){
-						if(ball->isFixed){
-							ball->c.x+=event.motion.xrel;
-						}
-					}
-				}
-			}
-			if(event.type == SDL_MOUSEBUTTONDOWN){
-				if(isPaused){
-					isPaused=(!isPaused);
-					SDL_SetRelativeMouseMode(SDL_TRUE);
-				}
-				else{
-					for(auto ball = balls.begin(); ball != balls.end(); ball++){
-						ball->isFixed=false;
-					}
-				}
-
-			}
-			if(event.type == SDL_KEYDOWN){
-				if(event.key.keysym.sym == SDLK_ESCAPE){
-					isPaused=(!isPaused);
-					if(!isPaused)
-						SDL_SetRelativeMouseMode(SDL_TRUE);
-					else
-						SDL_SetRelativeMouseMode(SDL_FALSE);
-				}
-			}
-		}
-
-
+		if(state.stage & 2)
+			eventHandler(event, state);
+		if(state.stage & 8)
+			lvlCreator::eventHandler(event, state);
 
 
 
@@ -216,8 +219,8 @@ int main(){
 		
 
 
-		if(isPaused){
-			drawPauseScreen();
+		if(state.stage % 2){
+			drawPauseScreen(renderer);
 			SDL_RenderPresent(renderer);
 			continue;
 		}
@@ -226,35 +229,53 @@ int main(){
 
 
 		
-
-		
-		moveBalls();
-		for(auto ball = balls.begin(); ball != balls.end();ball++){
-			ballColision(ITER2POINT(ball));
-			if(ball->c.y > 1010){
-				balls.erase(ball);
+		if(state.stage == 2){
+			moveBalls(state);
+			for(auto ball = state.balls.begin(); ball != state.balls.end();ball++){
+				ballColision(ITER2POINT(ball),state);
+				if(ball->c.y > 1010){
+					state.balls.erase(ball);
+				}
+				if(state.balls.empty())
+					break;
 			}
-			if(balls.empty())
-				break;
-		}
 		
-		SDL_SetRenderDrawColor(renderer,255,255,255,255);
+			SDL_SetRenderDrawColor(renderer,255,255,255,255);
 
-		for (auto block = blocks.begin(); block != blocks.end(); block++ ) {
-			for(auto point = block->begin(); point != block->end(); point++)
+			for (auto block = state.blocks.begin(); block != state.blocks.end(); block++ ) {
+				for(auto point = block->begin(); point != block->end(); point++)
+					SDL_RenderDrawLine(renderer, point->x, point->y, 
+							point+1==block->end()? (block->begin())->x:(point+1)->x,
+							point+1==block->end()? (block->begin())->y:(point+1)->y);
+			}
+
+
+			
+			SDL_RenderFillRect(renderer,&state.paddle);
+			for(auto ball = state.balls.begin(); ball != state.balls.end(); ball++){
+				SDL_Rect circumscribedSquare = ball->rect();
+				SDL_RenderCopy(renderer, texture, NULL, &circumscribedSquare);
+			}
+		}
+		if(state.stage == 8){
+			SDL_SetRenderDrawColor(renderer,255,255,255,255);
+			SDL_Rect curPRect = {state.currentPoint.x,state.currentPoint.y,10,10};
+			SDL_RenderDrawRect(renderer, &curPRect);
+			
+			SDL_SetRenderDrawColor(renderer,255,255,255,255);
+			for (auto block = state.blocks.begin(); block != state.blocks.end(); block++ ) {
+				for(auto point = block->begin(); point != block->end(); point++)
+					SDL_RenderDrawLine(renderer, point->x, point->y, 
+							point+1==block->end()? (block->begin())->x:(point+1)->x,
+							point+1==block->end()? (block->begin())->y:(point+1)->y);
+			}
+			for(auto point = state.currentBlock.begin(); point != state.currentBlock.end(); point++){
 				SDL_RenderDrawLine(renderer, point->x, point->y, 
-						point+1==block->end()? (block->begin())->x:(point+1)->x,
-						point+1==block->end()? (block->begin())->y:(point+1)->y);
-		}
-
-
+					point+1==state.currentBlock.end()? state.currentPoint.x:(point+1)->x,
+					point+1==state.currentBlock.end()? state.currentPoint.y:(point+1)->y);
+			}
 		
-		SDL_RenderFillRect(renderer,&paddle);
-		for(auto ball = balls.begin(); ball != balls.end(); ball++){
-			SDL_Rect circumscribedSquare = ball->rect();
-			SDL_RenderCopy(renderer, texture, NULL, &circumscribedSquare);
 		}
-
 		SDL_RenderPresent(renderer);
 	}
 
