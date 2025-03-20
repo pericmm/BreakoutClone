@@ -61,3 +61,22 @@ void lvlCreator::eventHandler(SDL_Event &event, State &state){
 		}
 	}
 }
+
+void lvlCreator::draw(State &state, SDL_Renderer *renderer){
+	SDL_SetRenderDrawColor(renderer,255,255,255,255);
+		SDL_Rect curPRect = {state.currentPoint.x,state.currentPoint.y,10,10};
+		SDL_RenderDrawRect(renderer, &curPRect);
+		
+		SDL_SetRenderDrawColor(renderer,255,255,255,255);
+		for (auto block = state.blocks.begin(); block != state.blocks.end(); block++ ) {
+			for(auto point = block->begin(); point != block->end(); point++)
+				SDL_RenderDrawLine(renderer, point->x, point->y, 
+						point+1==block->end()? (block->begin())->x:(point+1)->x,
+						point+1==block->end()? (block->begin())->y:(point+1)->y);
+		}
+		for(auto point = state.currentBlock.begin(); point != state.currentBlock.end(); point++){
+			SDL_RenderDrawLine(renderer, point->x, point->y, 
+				point+1==state.currentBlock.end()? state.currentPoint.x:(point+1)->x,
+				point+1==state.currentBlock.end()? state.currentPoint.y:(point+1)->y);
+		}	
+}
