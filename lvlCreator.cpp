@@ -1,4 +1,5 @@
 #include "lvlCreator.hpp"
+#include "structs.hpp"
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_rect.h>
 #include <SDL2/SDL_render.h>
@@ -20,6 +21,11 @@ void writeToFile(std::string filename, State state){
 		WriteFile  << '\n';
 	}
 	WriteFile.close();
+}
+
+void lvlCreator::init(State& state){
+	state.stage = 8;
+	state.blocks.clear();
 }
 
 void lvlCreator::eventHandler(SDL_Event &event, State &state){

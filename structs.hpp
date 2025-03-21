@@ -1,6 +1,8 @@
 #ifndef __STRUCTS__
 #define __STRUCTS__
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_rect.h>
+#include <SDL2/SDL_ttf.h>
 #include <list>
 #include <vector>
 
@@ -22,7 +24,9 @@ struct State{
 	std::vector<SDL_Point> currentBlock;
 	SDL_Rect paddle = {1920/2,1080-80, 100, 10};
 	SDL_Point currentPoint = {900, 500};
-	int stage = 2;
+	TTF_Font* font;
+	SDL_Point cursor;
+	int stage;
 };
 
 

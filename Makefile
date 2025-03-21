@@ -1,9 +1,9 @@
 CC = g++
 OBJECTS = main.o level.o pauseScreen.o lvlCreator.o
-FLAGS = -lSDL2
+FLAGS = -L/usr/include/SDL -lSDL2 -lSDL2_ttf 
 
 all: $(OBJECTS)
-	$(CC) $(FLAGS) $(OBJECTS)
+	$(CC) $(OBJECTS) $(FLAGS)
 
 %.o: %.c
 	$(CC) -c $^

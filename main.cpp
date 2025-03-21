@@ -7,11 +7,11 @@
 #include <SDL2/SDL_keycode.h>
 #include <SDL2/SDL_rect.h>
 #include <SDL2/SDL_render.h>
+#include <SDL2/SDL_timer.h>
+#include <SDL2/SDL_ttf.h>
 #include <cstdio>
-#include <fstream>
 #include <iostream>
 #include <list>
-#include <string>
 #include <unistd.h>
 #include <vector>
 #include <cmath>
@@ -45,37 +45,7 @@ void restartGame(State& state){
 
 
 
-std::vector<std::string> splitString(std::string s, char delimiter){
-	std::vector<std::string> result;
-	std::string temp= "";
-	for(char c: s){
-		if(c == delimiter || c==EOF){
-			result.push_back(temp);
-			temp = "";
-			continue;
-		}
-		temp += c;
-	}
-	result.push_back(temp);
-	return result;
-}
-std::vector<SDL_Point> stringToPoint(std::vector<std::string> input){
-	std::vector<SDL_Point> result;
-	for (int i=0; i<=input.size()-2; i=i+2 ) {
-		result.push_back({std::stoi(input[i]),std::stoi(input[i+1])});
-	}
-	return result;
-}
-void readLevelFromFile(std::string fileName, State& state){
-	std::string nextLine;
-	std::ifstream ReadFile(fileName);
-	std::vector<SDL_Point> block;
-	int x,y;
-	while(getline(ReadFile,nextLine)){
-		state.blocks.push_back(stringToPoint(splitString(nextLine, ',')));
-	}
-	ReadFile.close();
-}
+
 
 
 
@@ -98,6 +68,9 @@ int main(){
 	SDL_Init(SDL_INIT_VIDEO);
 	SDL_CreateWindowAndRenderer(1920,1080,0,&window, &renderer);
 	SDL_SetRelativeMouseMode(SDL_TRUE);
+	
+	TTF_Init();
+	state.font = TTF_OpenFont("Arial.ttf", 50);
 
 	SDL_Surface* surface = SDL_LoadBMP("large.bmp");
 	SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
@@ -105,7 +78,7 @@ int main(){
 	textures.push_back(texture);
 	SDL_FreeSurface(surface);
 
-	readLevelFromFile("level.txt", state);
+	level::init(state);
 
 	while (state.stage != 0){
 		if(state.balls.empty()){
@@ -122,7 +95,7 @@ int main(){
 			case 5:
 			case 9:
 				pauseScreen::eventHandler(event, state);
-				pauseScreen::draw(renderer);
+				pauseScreen::draw(renderer, state);
 				break;
 			case 2:
 				level::eventHandler(event, state);
@@ -144,7 +117,8 @@ int main(){
 
 		SDL_RenderPresent(renderer);
 	}
-
+	TTF_CloseFont(state.font);
+	TTF_Quit();
 	SDL_DestroyWindow(window);
 	SDL_Quit();
 	return 0;

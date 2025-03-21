@@ -3,6 +3,7 @@
 #include "structs.hpp"
 
 namespace level {
+	void init(State& state);
 	void ballColision(Sphere* ball, State& state);
 	bool colisionDetect(Sphere* ball, SDL_Point p1, SDL_Point p2);
 	void bounceBall(Sphere* ball, SDL_Point p1, SDL_Point p2);

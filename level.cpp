@@ -1,6 +1,8 @@
 #include "level.hpp"
 #include "pauseScreen.hpp"
+#include "structs.hpp"
 #include <algorithm>
+#include <fstream>
 
 #define ITER2POINT(x) (&(*(x)))
 
@@ -11,6 +13,44 @@ SDL_FPoint pointRotate(SDL_Point p, float angle){
 	result.x = cos(angle) * p.x - sin(angle) * p.y;
 	result.y = sin(angle) * p.x + cos(angle) * p.y;
 	return result;
+}
+
+std::vector<std::string> splitString(std::string s, char delimiter){
+	std::vector<std::string> result;
+	std::string temp= "";
+	for(char c: s){
+		if(c == delimiter || c==EOF){
+			result.push_back(temp);
+			temp = "";
+			continue;
+		}
+		temp += c;
+	}
+	result.push_back(temp);
+	return result;
+}
+std::vector<SDL_Point> stringToPoint(std::vector<std::string> input){
+	std::vector<SDL_Point> result;
+	for (int i=0; i<=input.size()-2; i=i+2 ) {
+		result.push_back({std::stoi(input[i]),std::stoi(input[i+1])});
+	}
+	return result;
+}
+void readLevelFromFile(std::string fileName, State& state){
+	std::string nextLine;
+	std::ifstream ReadFile(fileName);
+	std::vector<SDL_Point> block;
+	int x,y;
+	while(getline(ReadFile,nextLine)){
+		state.blocks.push_back(stringToPoint(splitString(nextLine, ',')));
+	}
+	ReadFile.close();
+}
+
+void init(State& state){
+	state.stage = 2;
+	readLevelFromFile("level.txt", state);
+	state.balls.clear();
 }
 
 void moveBalls(State& state){
