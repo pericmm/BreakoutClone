@@ -11,6 +11,5 @@ Left click to add point to the current polygon, right click to finish the polygo
 - 'w' - when in level creator saves currently drawn level to "level.txt"
 
 # Compilation
-Need to have SDL2 installed on the system.
-Compile using
-`g++ main.cpp -lSDL2`
+Need to have SDL2 installed on the system as well as SDL2_ttf.
+Makefile is provided
